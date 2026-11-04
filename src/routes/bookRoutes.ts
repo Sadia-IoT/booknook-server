@@ -66,5 +66,31 @@ router.get("/:id", async (req, res) => {
     });
   }
 });
+// Add a new book
+router.post("/", async (req, res) => {
+  try {
+    const db = getDB();
+
+    const bookData = req.body;
+
+    const result = await db.collection("books").insertOne({
+      ...bookData,
+      totalCopies: Number(bookData.totalCopies),
+      availableCopies: Number(bookData.totalCopies),
+      createdAt: new Date(),
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Book added successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to add book",
+    });
+  }
+});
 
 export default router;
