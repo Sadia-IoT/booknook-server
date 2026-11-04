@@ -4,6 +4,38 @@ import { ObjectId } from "mongodb";
 
 const router = express.Router();
 
+// Get borrowed books by user email
+router.get("/", async (req, res) => {
+  try {
+    const db = getDB();
+    const userEmail = req.query.email as string;
+
+    if (!userEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "User email is required",
+      });
+    }
+
+    const borrows = await db
+      .collection("borrows")
+      .find({ userEmail })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.status(200).json({
+      success: true,
+      message: "Borrowed books retrieved successfully",
+      data: borrows,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve borrowed books",
+    });
+  }
+});
+
 // Borrow a book
 router.post("/", async (req, res) => {
   try {
