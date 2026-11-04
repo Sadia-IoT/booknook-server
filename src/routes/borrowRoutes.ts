@@ -76,4 +76,60 @@ router.post("/", async (req, res) => {
   }
 });
 
+// Return a borrowed book
+router.patch("/:id/return", async (req, res) => {
+  try {
+    const db = getDB();
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid borrowing ID",
+      });
+    }
+
+    // Find and update the borrowing record
+    const result = await db.collection("borrows").updateOne(
+      {
+        _id: new ObjectId(id),
+        status: "borrowed",
+      },
+      {
+        $set: {
+          status: "returned",
+          returnedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Borrow record not found or already returned",
+      });
+    }
+
+    // Increase available copies
+    const borrow = await db.collection("borrows").findOne({
+      _id: new ObjectId(id),
+    });
+
+    await db.collection("books").updateOne(
+      { _id: borrow!.bookId },
+      { $inc: { availableCopies: 1 } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Book returned successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to return book",
+    });
+  }
+});
+
 export default router;
