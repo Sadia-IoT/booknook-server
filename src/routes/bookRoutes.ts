@@ -93,4 +93,47 @@ router.post("/", async (req, res) => {
   }
 });
 
+// Update a book
+router.patch("/:id", async (req, res) => {
+  try {
+    const db = getDB();
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid book ID",
+      });
+    }
+
+    const updatedData = { ...req.body };
+
+    if (updatedData.totalCopies !== undefined) {
+      updatedData.totalCopies = Number(updatedData.totalCopies);
+    }
+
+    const result = await db.collection("books").updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Book not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Book updated successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update book",
+    });
+  }
+});
+
 export default router;
