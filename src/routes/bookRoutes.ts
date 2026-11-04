@@ -69,6 +69,26 @@ router.get("/:id", async (req, res) => {
 // Add a new book
 router.post("/", async (req, res) => {
   try {
+    const {
+  title,
+  author,
+  totalCopies,
+  availableCopies,
+} = req.body;
+
+if (!title || !author || !totalCopies) {
+  return res.status(400).json({
+    success: false,
+    message: "Title, author and total copies are required",
+  });
+}
+
+if (totalCopies < 1 || availableCopies < 0) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid book copies",
+  });
+}
     const db = getDB();
 
     const bookData = req.body;
