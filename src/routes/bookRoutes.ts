@@ -4,16 +4,26 @@ import { ObjectId } from "mongodb";
 
 const router = express.Router();
 
-// Get all books
+
+// Get all books (supports limit and email filter)
 router.get("/", async (req, res) => {
   try {
     const db = getDB();
+    const email = req.query.email as string;
+    const limit = Number(req.query.limit);
 
-    const books = await db
+    const filter = email ? { userEmail: email } : {};
+
+    let query = db
       .collection("books")
-      .find()
-      .sort({ createdAt: -1 })
-      .toArray();
+      .find(filter)
+      .sort({ createdAt: -1 });
+
+    if (Number.isInteger(limit) && limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const books = await query.toArray();
 
     res.status(200).json({
       success: true,
@@ -27,6 +37,7 @@ router.get("/", async (req, res) => {
     });
   }
 });
+
 
 // Get a single book by ID
 router.get("/:id", async (req, res) => {
@@ -156,7 +167,7 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-// Delete a book
+
 // Delete a book
 router.delete("/:id", async (req, res) => {
   try {
@@ -189,6 +200,61 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to delete book",
+    });
+  }
+});
+
+// Add multiple books at once
+router.post("/bulk", async (req, res) => {
+  try {
+    const db = getDB();
+    const { books } = req.body;
+
+    if (!Array.isArray(books) || books.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Books array is required",
+      });
+    }
+
+    const invalidBook = books.some(
+      (book) =>
+        !book.title?.trim() ||
+        !book.author?.trim() ||
+        !Number.isFinite(Number(book.totalCopies)) ||
+        Number(book.totalCopies) < 1
+    );
+
+    if (invalidBook) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid book information",
+      });
+    }
+
+    const booksData = books.map((book) => ({
+      ...book,
+      totalCopies: Number(book.totalCopies),
+      availableCopies: Number(book.totalCopies),
+      createdAt: new Date(),
+    }));
+
+    const result = await db
+      .collection("books")
+      .insertMany(booksData);
+
+    res.status(201).json({
+      success: true,
+      message: "Books added successfully",
+      data: {
+        insertedCount: result.insertedCount,
+        insertedIds: result.insertedIds,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to add books",
     });
   }
 });

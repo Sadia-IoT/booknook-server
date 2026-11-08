@@ -1,11 +1,14 @@
+import { verifyToken } from "../middleware/verifyToken";
 import express from "express";
 import { getDB } from "../config/db";
 import { ObjectId } from "mongodb";
 
 const router = express.Router();
+router.use(verifyToken);
 
 // Get borrowed books by user email
 router.get("/", async (req, res) => {
+    console.log("GET BORROWS ROUTE CALLED");
   try {
     const db = getDB();
     const userEmail = req.query.email as string;
@@ -17,11 +20,47 @@ router.get("/", async (req, res) => {
       });
     }
 
-    const borrows = await db
-      .collection("borrows")
-      .find({ userEmail })
-      .sort({ createdAt: -1 })
-      .toArray();
+  const borrows = await db
+  .collection("borrows")
+  .aggregate([
+    {
+      $match: {
+        userEmail,
+        status: "borrowed",
+      },
+    },
+    {
+      $lookup: {
+        from: "books",
+        localField: "bookId",
+        foreignField: "_id",
+        as: "book",
+      },
+    },
+    {
+      $unwind: "$book",
+    },
+    {
+      $addFields: {
+        title: "$book.title",
+        image: "$book.image",
+        author: "$book.author",
+      },
+     
+    },
+    {
+      $project: {
+        book: 0,
+      },
+    },
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+  ])
+  .toArray();
+      console.log("Borrow records:", JSON.stringify(borrows, null, 2));
 
     res.status(200).json({
       success: true,
@@ -65,6 +104,19 @@ router.post("/", async (req, res) => {
     const book = await db.collection("books").findOne({
       _id: new ObjectId(bookId),
     });
+    // Check if this user already borrowed this book
+const existingBorrow = await db.collection("borrows").findOne({
+  bookId: new ObjectId(bookId),
+  userEmail,
+  status: "borrowed",
+});
+
+if (existingBorrow) {
+  return res.status(400).json({
+    success: false,
+    message: "You have already borrowed this book",
+  });
+}
 
     if (!book) {
       return res.status(404).json({
@@ -110,6 +162,7 @@ router.post("/", async (req, res) => {
 
 // Return a borrowed book
 router.patch("/:id/return", async (req, res) => {
+    console.log("RETURN ROUTE CALLED:", req.params.id);
   try {
     const db = getDB();
     const { id } = req.params;
@@ -120,6 +173,13 @@ router.patch("/:id/return", async (req, res) => {
         message: "Invalid borrowing ID",
       });
     }
+
+    const existing = await db.collection("borrows").findOne({
+  _id: new ObjectId(id),
+});
+
+console.log("FOUND BORROW:", existing);
+console.log("BORROW STATUS:", existing?.status);
 
     // Find and update the borrowing record
     const result = await db.collection("borrows").updateOne(
