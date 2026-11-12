@@ -125,6 +125,8 @@ if (totalCopies < 1 || availableCopies < 0) {
 });
 
 // Update a book
+
+ // Update a book
 router.patch("/:id", async (req, res) => {
   try {
     const db = getDB();
@@ -137,23 +139,57 @@ router.patch("/:id", async (req, res) => {
       });
     }
 
-    const updatedData = { ...req.body };
+    const collection = db.collection("books");
 
-    if (updatedData.totalCopies !== undefined) {
-      updatedData.totalCopies = Number(updatedData.totalCopies);
-    }
+    const existingBook = await collection.findOne({
+      _id: new ObjectId(id),
+    });
 
-    const result = await db.collection("books").updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updatedData }
-    );
-
-    if (result.matchedCount === 0) {
+    if (!existingBook) {
       return res.status(404).json({
         success: false,
         message: "Book not found",
       });
     }
+
+    const updatedData = { ...req.body };
+
+    // Never accept availableCopies directly from client
+    delete updatedData.availableCopies;
+
+    if (updatedData.totalCopies !== undefined) {
+      const newTotalCopies = Number(updatedData.totalCopies);
+
+      if (
+        !Number.isInteger(newTotalCopies) ||
+        newTotalCopies < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Total copies must be at least 1",
+        });
+      }
+
+      const borrowedCopies =
+        Number(existingBook.totalCopies) -
+        Number(existingBook.availableCopies);
+
+      if (newTotalCopies < borrowedCopies) {
+        return res.status(400).json({
+          success: false,
+          message: "Total copies cannot be less than borrowed copies",
+        });
+      }
+
+      updatedData.totalCopies = newTotalCopies;
+      updatedData.availableCopies =
+        newTotalCopies - borrowedCopies;
+    }
+
+    await collection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedData }
+    );
 
     res.status(200).json({
       success: true,
@@ -166,6 +202,7 @@ router.patch("/:id", async (req, res) => {
     });
   }
 });
+
 
 
 // Delete a book
