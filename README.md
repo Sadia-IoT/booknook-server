@@ -62,12 +62,12 @@ Create a `.env` file in the server root directory and configure the required env
 
 ```env
 PORT=5000
-MONGODB_URI=your_mongodb_connection_string
+MONGODB_URI=mongodb_connection_string
 DB_NAME=booknook
-AUTH_BASE_URL=your_better_auth_base_url
+AUTH_BASE_URL=better_auth_base_url
 ```
 
-Never share or commit your actual database credentials or secret information.
+
 
 ## Installation and Setup
 
