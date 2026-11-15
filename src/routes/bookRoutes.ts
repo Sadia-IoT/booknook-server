@@ -124,7 +124,7 @@ if (totalCopies < 1 || availableCopies < 0) {
   }
 });
 
-// Update a book
+
 
  // Update a book
 router.patch("/:id", async (req, res) => {
@@ -170,10 +170,10 @@ router.patch("/:id", async (req, res) => {
         });
       }
 
-      const borrowedCopies =
+      const borrowedCopies =Math.max(0,
         Number(existingBook.totalCopies) -
-        Number(existingBook.availableCopies);
-
+        Number(existingBook.availableCopies)
+    );
       if (newTotalCopies < borrowedCopies) {
         return res.status(400).json({
           success: false,
@@ -183,7 +183,7 @@ router.patch("/:id", async (req, res) => {
 
       updatedData.totalCopies = newTotalCopies;
       updatedData.availableCopies =
-        newTotalCopies - borrowedCopies;
+      newTotalCopies - borrowedCopies;
     }
 
     await collection.updateOne(
