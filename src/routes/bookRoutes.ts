@@ -1,9 +1,17 @@
 import express from "express";
 import { getDB } from "../config/db";
 import { ObjectId } from "mongodb";
+import { verifyToken } from "../middleware/verifyToken";
 
 const router = express.Router();
+type AuthUser = {
+  email?: string;
+  name?: string;
+};
 
+const getAuthUser = (req: Request) => {
+  return (req as Request & { user?: AuthUser }).user;
+};
 
 // Get all books (supports limit and email filter)
 router.get("/", async (req, res) => {
@@ -47,7 +55,7 @@ router.get("/:id", async (req, res) => {
 
 
 
-    if (!ObjectId.isValid(id)) {
+    if (typeof id !== "string" || !ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid book ID",
@@ -78,7 +86,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 // Add a new book
-router.post("/", async (req, res) => {
+router.post("/",verifyToken, async (req, res) => {
   try {
     const {
   title,
@@ -127,12 +135,12 @@ if (totalCopies < 1 || availableCopies < 0) {
 
 
  // Update a book
-router.patch("/:id", async (req, res) => {
+router.patch("/:id",verifyToken, async (req, res) => {
   try {
     const db = getDB();
     const { id } = req.params;
 
-    if (!ObjectId.isValid(id)) {
+    if (typeof id !== "string" || !ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid book ID",
@@ -206,12 +214,12 @@ router.patch("/:id", async (req, res) => {
 
 
 // Delete a book
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const db = getDB();
     const { id } = req.params;
 
-    if (!ObjectId.isValid(id)) {
+    if (typeof id !== "string" || !ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid book ID",
@@ -242,7 +250,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 // Add multiple books at once
-router.post("/bulk", async (req, res) => {
+router.post("/bulk",verifyToken, async (req, res) => {
   try {
     const db = getDB();
     const { books } = req.body;
